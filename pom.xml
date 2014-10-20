@@ -199,8 +199,10 @@
 
       Some limitations:
 
-      * Port mapping cannot be dynamically used. Only the ports specified in conf.yml are exported
-        literally
+      * No variable substitution in Dockerfile so the artifact must be specified with version number (and updated
+        for each new version)
+      * Port mapping variables are fixed and not explicitely mentioned in the configuration (one has to guess or look
+        at the Dockerfile to find out the variable names and ports exposed)
       -->
     <profile>
       <id>wouterd</id>

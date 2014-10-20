@@ -199,7 +199,6 @@
 
       Some limitations:
 
-      * "waitForStartup" is
       * Port mapping cannot be dynamically used. Only the ports specified in conf.yml are exported
         literally
       -->

@@ -22,7 +22,6 @@ public class LogServiceIT {
 
         RestAssured.baseURI = baseUrl;
         RestAssured.defaultParser = Parser.TEXT;
-        // Need to do it that way since Jolokia doesnt return application/json as mimetype by default
         String answer = get("/" + nonce).asString();
         System.out.println("Response: " + answer);
 

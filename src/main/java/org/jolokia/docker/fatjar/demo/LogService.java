@@ -14,7 +14,8 @@ import org.apache.catalina.startup.Tomcat;
 import org.flywaydb.core.Flyway;
 
 /**
- * Popup Tomcat and install Jolokia
+ * Popup Tomcat, migrate DB and start LogService
+ *
  * @author roland
  * @since 08.08.14
  */
@@ -34,8 +35,10 @@ public class LogService extends HttpServlet {
 
     // Log into DB and print out all logs.
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        try (Connection connection = DriverManager.getConnection(getConnectionUrl(), "postgres", null)) {
-            // Insert current request ...
+        try (Connection connection = DriverManager.getConnection(getConnectionUrl(),
+                                                                 "postgres",
+                                                                 null)) {
+            // Insert current request in DB ...
             insertLog(req, connection);
 
             // ... and then return all logs stored so far
@@ -63,12 +66,12 @@ public class LogService extends HttpServlet {
     private String getConnectionUrl() {
         String dbPort = System.getenv("DB_PORT");
 
-        // Fallback for alexec Plugin which doesnot support configuration of link aliases
+        // Fallback for alexec Plugin which does not support configuration of link aliases
         if (dbPort == null) {
             dbPort = System.getenv("SHOOTOUT_DOCKER_MAVEN_DB_PORT");
         }
         if (dbPort == null) {
-            throw new IllegalArgumentException("No DB_PORT or DOCKER_MAVEN_DEMO_DB environment variable set. Please check you docker link parameters.");
+            throw new IllegalArgumentException("No DB_PORT or SHOOTOUT_DOCKER_MAVEN_DB_PORT environment variable set. Please check you docker link parameters.");
         }
         Pattern pattern = Pattern.compile("^[^/]*//(.*)");
         Matcher matcher = pattern.matcher(dbPort);
@@ -91,7 +94,8 @@ public class LogService extends HttpServlet {
     }
 
     private void insertLog(HttpServletRequest req, Connection connection) throws SQLException {
-        try (PreparedStatement stmt = connection.prepareStatement("INSERT INTO LOGGING (date,ip,url) VALUES (?,?,?)")) {
+        try (PreparedStatement stmt =
+                     connection.prepareStatement("INSERT INTO LOGGING (date,ip,url) VALUES (?,?,?)")) {
             stmt.setTimestamp(1, new Timestamp((new java.util.Date()).getTime()));
             stmt.setString(2, req.getRemoteAddr());
             stmt.setString(3, req.getRequestURI());

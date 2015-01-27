@@ -37,7 +37,7 @@
   <properties>
     <tomcat.version>7.0.55</tomcat.version>
 
-    <docker.maven.plugin.rhuss.version>0.10.4-SNAPSHOT</docker.maven.plugin.rhuss.version>
+    <docker.maven.plugin.rhuss.version>0.11.0</docker.maven.plugin.rhuss.version>
     <docker.maven.plugin.wouterd.version>2.3</docker.maven.plugin.wouterd.version>
     <docker.maven.plugin.alexec.version>2.1.0</docker.maven.plugin.alexec.version>
     <docker.maven.plugin.spotify.version>0.0.21</docker.maven.plugin.spotify.version>
@@ -81,6 +81,8 @@
             <artifactId>docker-maven-plugin</artifactId>
             <version>${docker.maven.plugin.rhuss.version}</version>
             <configuration>
+              <logDate>default</logDate>
+              <autoPull>true</autoPull>
               <images>
                 <!-- Postgres Image is used 'as-is' and is linked into the service image -->
                 <image>
@@ -91,6 +93,10 @@
                       <log>database system is ready to accept connections</log>
                       <time>20000</time>
                     </wait>
+                    <log>
+                      <prefix>DB</prefix>
+                      <color>yellow</color>
+                    </log>
                   </run>
                 </image>
 
@@ -106,7 +112,9 @@
                   <build>
                     <from>java:8u40</from>
                     <!-- Assembly descriptor holds the reference to the created artifact-->
-                    <assemblyDescriptor>src/main/rhuss/docker-assembly.xml</assemblyDescriptor>
+                    <assembly>
+                      <descriptor>rhuss-assembly.xml</descriptor>
+                    </assembly>
                     <!-- Expose ports -->
                     <ports>
                       <port>8080</port>
@@ -135,10 +143,12 @@
                            enough here -->
                       <link>db:db</link>
                     </links>
+                    <log>
+                      <prefix>TC</prefix>
+                      <color>cyan</color>
+                    </log>
                   </run>
                 </image>
-
-
               </images>
             </configuration>
 
@@ -203,7 +213,7 @@
 
       * No variable substitution in Dockerfile so the artifact must be specified with version number (and updated
         for each new version)
-      * Port mapping variables are fixed and not explicitely mentioned in the configuration (one has to guess or look
+      * Port mapping variables are fixed and not explicitly mentioned in the configuration (one has to guess or look
         at the Dockerfile to find out the variable names and ports exposed)
       -->
     <profile>

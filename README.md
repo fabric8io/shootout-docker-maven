@@ -30,19 +30,19 @@ e.g. with
 $ mvn -Prhuss clean install
 ````
 
- ## Results
+## Results
 
 The following sections summarizes some results while developing and running the examples. Of course, they can change over time when new releases happen.
 Please feel also free to send pull requests for things which you consider to be wrong or corrected. And of course, the results
 are somewhat biased ;-)
 
- ### rhuss
+### rhuss
 
 * Version: 0.11.3
 * Log output of containers' standard out during integration test
 * Full support for
 
- ### wouterd
+### wouterd
 
 * Version: 3.0
 * No progress indicator during long lasting download. Build seems to hang.
@@ -53,7 +53,7 @@ are somewhat biased ;-)
 * Credentials must be given as properties or within the plugin configuration. No support for encrypted password and usage
   of `~/.settings.xml`
 
- ### alexec
+### alexec
 
 * Version: 2.4.0
 * The integration test doesn't work on other systems than Linux since there is no possibility
@@ -67,7 +67,7 @@ are somewhat biased ;-)
 * Doesn't work yet with SSL which is enabled by default in boot2Docker since 1.3.0
 * No waiting on log output of the DB possible
 
- ### spotify
+### spotify
 
 * Version: 0.2.3
 * This plugin can be only used to build an image, so its quite limited.

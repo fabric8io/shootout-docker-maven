@@ -40,18 +40,23 @@ are somewhat biased ;-)
 
 * Version: 0.11.3
 * Log output of containers' standard out during integration test
-* Full support for
+* Progress bar when downloading images
+* Full support for waiting on time, url or log output after container startup
+* Flexible (dynamic) port mapping and assignment to variables
+* Building images via plugin configuration or Dockerfiles
+* Credentials can be stored encrypted in `~/.m2/settings.xml` in the `<servers>` section
+* No detailed output when building images (only when debugging is switched on with `-X`)
 
 ### wouterd
 
 * Version: 3.0
 * No progress indicator during long lasting download. Build seems to hang.
 * No variable substitution in Dockerfile so the artifact must be specified with version number
-  (and updated for each new version)
+  (and updated for each new version).
 * Port mapping variables are fixed and not explicitly mentioned in the configuration (one has to guess or look at
-  the Dockerfile to find out the variable names and ports exposed)
+  the Dockerfile to find out the variable names and ports exposed).
 * Credentials must be given as properties or within the plugin configuration. No support for encrypted password and usage
-  of `~/.settings.xml`
+  of `~/.m2/settings.xml`.
 
 ### alexec
 
@@ -59,19 +64,20 @@ are somewhat biased ;-)
 * The integration test doesn't work on other systems than Linux since there is no possibility
   for dynamic port mapping. It always maps the exposed port (8080) to the same port on the
   docker host. For Boot2Docker this doesn't work easily because of the extra layer of a Linux VM.
-* Quite noisy on standard out (including the whole HTTP communication)
+  You can start the created images manually, however and run the integration tests directly. See the
+  the section about the *spotify* plugin for an example.
+* Quite noisy on standard out (including the whole HTTP communication).
 * Cannot influence name of linked containers. You application need to use the given name which
   is automatically calculated by the artifact name and the image directory name.
 * Port mapping cannot be dynamically used. Only the ports specified in `conf.yml` are exported
-  directly
-* Doesn't work yet with SSL which is enabled by default in boot2Docker since 1.3.0
-* No waiting on log output of the DB possible
+  directly.
+* No waiting on log output of the DB possible.
 
 ### spotify
 
 * Version: 0.2.3
-* This plugin can be only used to build an image, so its quite limited.
-* A Dockerfile is needed because we want to export a port (this is not possible with the simple configuration mode)
+* This plugin can be only used to build an image, so its quite limited for this example.
+* A Dockerfile is needed because we want to export a port (this is not possible with the simple configuration mode).
 
 The image can be build with
 

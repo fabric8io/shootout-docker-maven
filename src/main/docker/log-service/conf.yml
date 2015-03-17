@@ -11,7 +11,7 @@ links:
   - db
 healthChecks:
   pings:
-    - url: http://localhost:8080
+    - url: http://__CONTAINER.IP__:8080
       timeout: 10000
 # tag to use for images
 tag: jolokia/${project.artifactId}-alexec:${project.version}

@@ -24,7 +24,7 @@ Both containers from this image are docker linked together during the integratio
 ## Running the shoot-out
 
 Each plugin is configured in an extra Maven profile: `wouterd`, `alexec`, `spotify` and `rhuss`. The test can be started
-with
+e.g. with
 
 ````bash
 $ mvn -Prhuss clean install
@@ -32,10 +32,64 @@ $ mvn -Prhuss clean install
 
  ## Results
 
+The following sections summarizes some results while developing and running the examples. Of course, they can change over time when new releases happen.
+Please feel also free to send pull requests for things which you consider to be wrong or corrected. And of course, the results
+are somewhat biased ;-)
+
  ### rhuss
+
+* Version: 0.11.3
+* Log output of containers' standard out during integration test
+* Full support for
 
  ### wouterd
 
+* Version: 3.0
+* No progress indicator during long lasting download. Build seems to hang.
+* No variable substitution in Dockerfile so the artifact must be specified with version number
+  (and updated for each new version)
+* Port mapping variables are fixed and not explicitly mentioned in the configuration (one has to guess or look at
+  the Dockerfile to find out the variable names and ports exposed)
+* Credentials must be given as properties or within the plugin configuration. No support for encrypted password and usage
+  of `~/.settings.xml`
+
  ### alexec
 
+* Version: 2.4.0
+* The integration test doesn't work on other systems than Linux since there is no possibility
+  for dynamic port mapping. It always maps the exposed port (8080) to the same port on the
+  docker host. For Boot2Docker this doesn't work easily because of the extra layer of a Linux VM.
+* Quite noisy on standard out (including the whole HTTP communication)
+* Cannot influence name of linked containers. You application need to use the given name which
+  is automatically calculated by the artifact name and the image directory name.
+* Port mapping cannot be dynamically used. Only the ports specified in `conf.yml` are exported
+  directly
+* Doesn't work yet with SSL which is enabled by default in boot2Docker since 1.3.0
+* No waiting on log output of the DB possible
+
  ### spotify
+
+* Version: 0.2.3
+* This plugin can be only used to build an image, so its quite limited.
+* A Dockerfile is needed because we want to export a port (this is not possible with the simple configuration mode)
+
+The image can be build with
+
+````
+mvn -Pspotify clean package docker:build
+````
+
+In order to test is, the images must be started manually:
+
+````
+docker run -name postgres_cnt -d postgres
+docker run -P -link postgres_cnt:db jolokia/docker-maven-demo-spotify:0.0.1-SNAPSHOT
+`````
+
+Then you can run the integration test:
+
+````
+mvn -Dlog.url=http://localhost:49162 integration-test
+````
+
+(replace 49162 with the dynamic port as shown by `docker ps` or `docker port`)

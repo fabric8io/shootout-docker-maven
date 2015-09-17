@@ -1,1 +1,1 @@
-FROM postgres:9
+FROM postgres:8

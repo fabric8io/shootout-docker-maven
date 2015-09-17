@@ -37,10 +37,11 @@
   <properties>
     <tomcat.version>7.0.55</tomcat.version>
 
-    <docker.maven.plugin.rhuss.version>0.11.3-SNAPSHOT</docker.maven.plugin.rhuss.version>
-    <docker.maven.plugin.wouterd.version>3.0</docker.maven.plugin.wouterd.version>
-    <docker.maven.plugin.alexec.version>2.4.0</docker.maven.plugin.alexec.version>
-    <docker.maven.plugin.spotify.version>0.2.3</docker.maven.plugin.spotify.version>
+    <!--  Current versions as of 2015-9-17: -->
+    <docker.maven.plugin.rhuss.version>0.13.4</docker.maven.plugin.rhuss.version>
+    <docker.maven.plugin.wouterd.version>3.1.0</docker.maven.plugin.wouterd.version>
+    <docker.maven.plugin.alexec.version>2.10.4</docker.maven.plugin.alexec.version>
+    <docker.maven.plugin.spotify.version>0.3.3</docker.maven.plugin.spotify.version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -87,7 +88,7 @@
                 <!-- Postgres Image is used 'as-is' and is linked into the service image -->
                 <image>
                   <alias>db</alias>
-                  <name>postgres:9</name>
+                  <name>postgres:8</name>
                   <run>
                     <wait>
                       <log>database system is ready to accept connections</log>
@@ -123,7 +124,7 @@
                       <port>8080</port>
                     </ports>
                     <!-- Default command for the build image -->
-                    <command>java -Djava.security.egd=file:/dev/./urandom -jar /maven/shootout-docker-maven-rhuss.jar</command>
+                    <cmd>java -Djava.security.egd=file:/dev/./urandom -jar /maven/shootout-docker-maven-rhuss.jar</cmd>
                   </build>
 
                   <!-- ............................................................... -->
@@ -136,7 +137,7 @@
                     </ports>
                     <wait>
                       <!-- Check for this URL to return a 200 return code .... -->
-                      <url>http://localhost:${tomcat.port}/access</url>
+                      <url>http://${docker.host.address}:${tomcat.port}/access</url>
                       <!-- ... but at max 10 seconds -->
                       <time>10000</time>
                     </wait>
@@ -179,7 +180,7 @@
             <artifactId>maven-failsafe-plugin</artifactId>
             <configuration>
               <systemPropertyVariables>
-                <log.url>http://localhost:${tomcat.port}/jolokia</log.url>
+                <log.url>http://${docker.host.address}:${tomcat.port}/jolokia</log.url>
               </systemPropertyVariables>
             </configuration>
           </plugin>
@@ -244,7 +245,7 @@
               <containers>
                 <container>
                   <id>postgres</id>
-                  <image>postgres:9</image>
+                  <image>postgres:8</image>
                   <waitForStartup>database system is ready to accept connections</waitForStartup>
                 </container>
                 <container>
@@ -286,7 +287,7 @@
             <artifactId>maven-failsafe-plugin</artifactId>
             <configuration>
               <systemPropertyVariables>
-                <log.url>http://localhost:${docker.containers.log-service.ports.8080/tcp.port}</log.url>
+                <log.url>http://${docker.containers.log-service.ports.8080/tcp.host}:${docker.containers.log-service.ports.8080/tcp.port}</log.url>
               </systemPropertyVariables>
             </configuration>
           </plugin>
@@ -310,7 +311,9 @@
 
       The integration test doesn't work on other systems than Linux since there is no possibility
       for dynamic port mapping. It always maps the exposed port (8080) to the same port on the
-      docker host. For Boot2Docker this doesn't work easily because of the extra layer of a Linux VM
+      docker host. For docker machine with a VM this doesn't work easily because of the extra layer of a Linux VM.
+      Also there is no way to obtain the DOCKER_HOST address easily in the configuration which is useful
+      for integration testst. Now the code itself has a workaround for that
 
       Other limitations:
 
@@ -357,7 +360,9 @@
             <artifactId>maven-failsafe-plugin</artifactId>
             <configuration>
               <systemPropertyVariables>
-                <log.url>http://${docker.log-service.ip}:8080</log.url>
+                <!--  The host is detected internally in LogServiceIT since this plugin has no
+                      way to inject it here -->
+                <log.port>8080</log.port>
               </systemPropertyVariables>
             </configuration>
           </plugin>
@@ -380,7 +385,7 @@
 
       You can run the image but need to link the postgres image properly:
 
-      docker run -name postgres_cnt -d postgres
+      docker run -name postgres_cnt -d postgres:8
       docker run -P -link postgres_cnt:db jolokia/shootout-docker-maven-spotify:0.0.1-SNAPSHOT
 
       Finally you can run the integration test:

@@ -10,8 +10,14 @@ ports:
 links:
   - db
 healthChecks:
-  pings:
-    - url: http://__CONTAINER.IP__:8080
+
+  # Ping doesn't work because we would need the external docker host address,
+  # not the internal one
+  # pings:
+  # - url: http://__CONTAINER.IP__:8080
+  #    timeout: 10000
+  logPatterns:
+    - pattern: Starting ProtocolHandler
       timeout: 10000
 # tag to use for images
 tag: jolokia/${project.artifactId}-alexec:${project.version}

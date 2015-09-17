@@ -1,5 +1,8 @@
 package org.jolokia.docker.maven.sample.jolokia;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import com.jayway.restassured.RestAssured;
 import com.jayway.restassured.parsing.Parser;
 import org.junit.Test;
@@ -36,9 +39,26 @@ public class LogServiceIT {
     private String extractUrl() {
         String ret = System.getProperty("log.url");
         if (ret == null) {
-            throw new IllegalArgumentException("Cannot extract service url as system property");
+            // This fallback is used for alexec/docker-maven-plugin since there is no
+            // way to get the Docker host adress (only ips on the internal docke network)
+            // So lets try to fetch it on our own.
+            String port = System.getProperty("log.port");
+            if (port == null) {
+                throw new IllegalArgumentException("Cannot extract service url as system property");
+            }
+            String host = System.getenv("DOCKER_HOST");
+            if (host == null) {
+                throw new IllegalArgumentException("Cannot extract docker host address");
+            }
+            Matcher matcher = Pattern.compile("^tcp://([\\d.]+):\\d+$").matcher(host);
+            if (matcher.matches()) {
+                return "http://" + matcher.group(1) + ":" + port;
+            } else {
+                throw new IllegalArgumentException(host + " doesn't match as DOCKER_HOST");
+            }
+        } else {
+            return ret;
         }
-        return ret;
     }
 
 }

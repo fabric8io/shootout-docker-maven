@@ -38,7 +38,7 @@ are somewhat biased ;-)
 
 ### rhuss
 
-* Version: 0.11.3
+* Version: 0.13.4
 * Log output of containers' standard out during integration test
 * Progress bar when downloading images
 * Full support for waiting on time, url or log output after container startup
@@ -49,7 +49,7 @@ are somewhat biased ;-)
 
 ### wouterd
 
-* Version: 3.0
+* Version: 3.1.0
 * No progress indicator during long lasting download. Build seems to hang.
 * No variable substitution in Dockerfile so the artifact must be specified with version number
   (and updated for each new version).
@@ -60,22 +60,22 @@ are somewhat biased ;-)
 
 ### alexec
 
-* Version: 2.4.0
+* Version: 2.10.4
 * The integration test doesn't work on other systems than Linux since there is no possibility
   for dynamic port mapping. It always maps the exposed port (8080) to the same port on the
   docker host. For Boot2Docker this doesn't work easily because of the extra layer of a Linux VM.
   You can start the created images manually, however and run the integration tests directly. See the
   the section about the *spotify* plugin for an example.
-* Quite noisy on standard out (including the whole HTTP communication).
 * Cannot influence name of linked containers. You application need to use the given name which
   is automatically calculated by the artifact name and the image directory name.
 * Port mapping cannot be dynamically used. Only the ports specified in `conf.yml` are exported
   directly.
-* No waiting on log output of the DB possible.
+* No exposure of the external ip adress how a container can be reached (this should be the `DOCKER_HOST` address). 
+  Only the internal address is reachable.
 
 ### spotify
 
-* Version: 0.2.3
+* Version: 0.3.3
 * This plugin can be only used to build an image, so its quite limited for this example.
 * A Dockerfile is needed because we want to export a port (this is not possible with the simple configuration mode).
 

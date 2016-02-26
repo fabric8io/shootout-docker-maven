@@ -8,6 +8,9 @@
  * [spotify/docker-maven-plugin](https://github.com/spotify/docker-maven-plugin)
  * [fabric8io/docker-maven-plugin](https://github.com/fabric8io/docker-maven-plugin)
 
+Of course, this shootout is biased. And since we know our plugin the best, the configuration for the
+ `fabric8io/docker-maven-plugin` is probably tuned best. However, we happily will integrate any PR which improves the configuration for the other examples as well.
+
 ## A Micro-Service
 
 This project contains of a very simple Micro-Service, which accesses a Postgres database. The purpose of
@@ -39,6 +42,29 @@ are somewhat biased ;-)
 ### fabric8io
 
 * Version: 0.14.1
+
+The fabric8 plugin uses a configuration section for all images to maintain. It has config section for 
+each section, which is divided in a build and run part for building instructions and rumtime configuration, 
+respectively. The service image dynamically adds files as described in the assembly descriptor 
+`src/main/fabric8/docker-assembly.xml`
+
+To build the images:
+
+      mvn -Pfabric8 docker:build
+
+To create containers and start them:
+
+      mvn -Pfabric8 docker:build docker:start
+
+Calling
+
+      mvn -Pfabric8 install
+
+will perform all the above plus more: Create images, start container, run unit tests,
+stop containers, cleanup.
+
+Some features:
+
 * Log output of containers' standard out during integration test
 * Progress bar when downloading images
 * Full support for waiting on time, url or log output after container startup

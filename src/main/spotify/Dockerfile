@@ -1,7 +1,7 @@
 # Dockerfile used by spotify/docker-maven-plugin
 FROM java:8
 
-MAINTAINER roland@jolokia.org
+MAINTAINER rhuss@redhat.com
 
 EXPOSE 8080
 

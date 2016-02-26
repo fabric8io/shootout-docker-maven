@@ -1,4 +1,4 @@
-package org.jolokia.docker.maven.sample.jolokia;
+package io.fabric8.maven.docker.sample.jolokia;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

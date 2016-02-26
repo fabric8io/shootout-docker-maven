@@ -20,4 +20,4 @@ healthChecks:
     - pattern: Starting ProtocolHandler
       timeout: 10000
 # tag to use for images
-tag: jolokia/${project.artifactId}-alexec:${project.version}
+tag: fabric8/${project.artifactId}-alexec:${project.version}

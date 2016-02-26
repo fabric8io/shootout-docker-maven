@@ -1,4 +1,4 @@
-package org.jolokia.docker.fatjar.demo;
+package io.fabric8.docker.sample.demo;
 
 import java.io.*;
 import java.sql.*;

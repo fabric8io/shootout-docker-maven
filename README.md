@@ -138,7 +138,7 @@ Other limitations:
 
 * Version: 0.4.1
 
-Since this plugin can be only used to build an image, its quite limited. Also we need to use
+Since this plugin can be only used to build an image. Also we need to use
 the Dockerfile mode because we want to export a port (which is not possible with the simple
 configuration)
 

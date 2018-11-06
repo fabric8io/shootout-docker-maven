@@ -1,0 +1,23 @@
+# additional data require to create the Docker image
+packaging:
+  # files to add to the build, usually used with ADD in the Dockerfile
+  add:
+    - target/${project.build.finalName}.jar
+# optional list of port to expose on the host
+ports:
+  - 8080
+# containers that this should be linked to, started before this one and stopped afterwards
+links:
+  - db
+healthChecks:
+
+  # Ping doesn't work because we would need the external docker host address,
+  # not the internal one
+  # pings:
+  # - url: http://__CONTAINER.IP__:8080
+  #    timeout: 10000
+  logPatterns:
+    - pattern: Starting ProtocolHandler
+      timeout: 10000
+# tag to use for images
+tag: fabric8/${project.artifactId}-alexec:${project.version}

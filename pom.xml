@@ -1,0 +1,554 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+  Simple demo project showing how to create a MicroService within a Docker container
+  using Tomcat in embedded mode
+
+  This example simply installs a Jolokia Agent Servlet (www.jolokia.org) as a microservice with an embedded
+  Tomcat into a Docker Image.
+
+  The integration will startup this image, runs a simple test checking the version and then stops the container.
+
+  The following goals are useful:
+
+  * 'mvn package docker:build' : Build FAT-jar and container
+  * 'mvn install'              : Build fat-jar, build container, start container, test, stop container, remove container
+  * 'mvn package docker:push'  : Push container upstream (you would have to change the repository name in the maven plugin
+                                 for proper authentication, thouhg)
+
+  The test with 'mvn install' does the following in detail:
+
+  * Create a "fat" jar via the maven-shade-plugin
+  * Creates a Docker data container with 'tomcat-jolokia.jar' as described in assembly descriptor src/main/docker-assembly.xml
+  * Starts (and optionally pull) the jolokia/tomcat-7.0 container with the data container linked to it
+  * Waits until Tomcat is up (i.e. until it is reachable via an HTTP request)
+  * Runs an integration test via maven-failsafe-plugin, using rest-assured for accessing the deployed app.
+  * Prints out some version information about the contaner running (in order prove that's not a fake ;-)
+  * Stops and removes the containers.
+
+  -->
+
+  <groupId>io.fabric8</groupId>
+  <artifactId>shootout-docker-maven</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+
+  <properties>
+    <tomcat.version>7.0.55</tomcat.version>
+
+    <!--  Current versions as of 2016-2-26: -->
+    <docker.maven.plugin.fabric8.version>0.14.1</docker.maven.plugin.fabric8.version>
+    <docker.maven.plugin.wouterd.version>5.0.0</docker.maven.plugin.wouterd.version>
+    <docker.maven.plugin.alexec.version>2.11.9</docker.maven.plugin.alexec.version>
+    <docker.maven.plugin.spotify.version>0.4.1</docker.maven.plugin.spotify.version>
+
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+  </properties>
+
+  <profiles>
+
+    <!--
+      ====== fabric8/docker-maven-plugin =======================================================
+
+      The fabric8 plugin uses a configuration sectiosn for all images to maintain. It has config section
+      for each section, which is divided in a build and run part for building instructions and rumtime configuration,
+      respectively. The service image dynamically adds files as described in the assembly descriptor
+      src/main/fabric8/docker-assembly.xml
+
+      To build the images:
+
+      mvn -Pfabric8 docker:build
+
+      To create containers and start them:
+
+      mvn -Pfabric8 docker:build docker:start
+
+      Calling
+
+      mvn -Pfabric8 install
+
+      will perform all the above plus more: Create images, start container, run unit tests,
+      stop containers, cleanup.
+      -->
+    <profile>
+      <id>fabric8</id>
+      <build>
+        <plugins>
+          <plugin>
+            <!-- The Docker Maven plugin is used to create docker image with the fat jar -->
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <version>${docker.maven.plugin.fabric8.version}</version>
+            <configuration>
+              <logDate>default</logDate>
+              <autoPull>true</autoPull>
+              <images>
+                <!-- Postgres Image is used 'as-is' and is linked into the service image -->
+                <image>
+                  <alias>db</alias>
+                  <name>postgres:8</name>
+                  <run>
+                    <wait>
+                      <log>database system is ready to accept connections</log>
+                      <time>20000</time>
+                    </wait>
+                    <log>
+                      <prefix>DB</prefix>
+                      <color>yellow</color>
+                    </log>
+                  </run>
+                </image>
+
+                <!-- Image holding the artifact of this build -->
+                <image>
+                  <!-- Alias name which can used for linking containers during runtime -->
+                  <alias>service</alias>
+                  <name>fabric8/${project.artifactId}-fabric8:${project.version}</name>
+
+                  <!-- ....................................... -->
+                  <!-- Build configuration for creating images -->
+                  <!-- ....................................... -->
+                  <build>
+                    <from>java:8u40</from>
+                    <!-- Assembly descriptor holds the reference to the created artifact-->
+                    <assembly>
+                      <!-- Normally, one would only use 'assembly.xml' if we could put the assembly descriptor
+                           into src/main/docker But this confuses the alexec plugin, so we put it into another
+                           directory and use an absolute pathe -->
+                      <descriptor>${basedir}/src/main/fabric8/assembly.xml</descriptor>
+                    </assembly>
+                    <!-- Expose ports -->
+                    <ports>
+                      <port>8080</port>
+                    </ports>
+                    <!-- Default command for the build image -->
+                    <cmd>java -Djava.security.egd=file:/dev/./urandom -jar /maven/shootout-docker-maven-fabric8.jar</cmd>
+                  </build>
+
+                  <!-- ............................................................... -->
+                  <!-- Runtime configuration for starting/stopping/linking containers -->
+                  <!-- ............................................................... -->
+                  <run>
+                    <!-- Assign dynamically mapped ports to maven variables (which can be reused in integration tests) -->
+                    <ports>
+                      <port>tomcat.port:8080</port>
+                    </ports>
+                    <wait>
+                      <!-- Check for this URL to return a 200 return code .... -->
+                      <url>http://${docker.host.address}:${tomcat.port}/access</url>
+                      <!-- ... but at max 10 seconds -->
+                      <time>10000</time>
+                    </wait>
+                    <links>
+                      <!-- Links can be referenced via alias (db) or name (postgres:9). If no link-alias (second "db")
+                           is given it takes the first part (first "db") as link alias. So, <link>db</link> would be
+                           enough here -->
+                      <link>db:db</link>
+                    </links>
+                    <log>
+                      <prefix>TC</prefix>
+                      <color>cyan</color>
+                    </log>
+                  </run>
+                </image>
+              </images>
+            </configuration>
+
+            <!-- Hooking into the lifecycle -->
+            <executions>
+              <execution>
+                <id>start</id>
+                <phase>pre-integration-test</phase>
+                <goals>
+                  <goal>build</goal>
+                  <goal>start</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>stop</id>
+                <phase>post-integration-test</phase>
+                <goals>
+                  <goal>stop</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+
+          <plugin>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <configuration>
+              <systemPropertyVariables>
+                <log.url>http://${docker.host.address}:${tomcat.port}/jolokia</log.url>
+              </systemPropertyVariables>
+            </configuration>
+          </plugin>
+
+        </plugins>
+      </build>
+      <activation>
+        <activeByDefault/>
+      </activation>
+    </profile>
+
+    <!--
+      ====== wouterd/docker-maven-plugin =======================================================
+
+      The wouterd plugin uses different configuration sections for building and running images.
+      For building images every file (including the Dockerfile itself) must be referenced.
+
+      To build the images:
+
+      mvn -Pwouterd package docker:build-images
+
+      To create containers and start them:
+
+      mvn -Pwouterd docker:start-containers
+
+      Calling
+
+      mvn -Pwouterd install
+
+      will perform all the above plus more: Create images, start container, run unit tests,
+      stop containers, cleanup.
+
+      Some limitations:
+
+      * Port mapping variables are fixed and not explicitly mentioned in the configuration (one has to guess or look
+        at the Dockerfile to find out the variable names and ports exposed)
+      -->
+    <profile>
+      <id>wouterd</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>docker-maven-plugin</artifactId>
+            <groupId>net.wouterdanes.docker</groupId>
+            <version>${docker.maven.plugin.wouterd.version}</version>
+            <configuration>
+              <images>
+                <image>
+                  <id>log-service</id>
+                  <nameAndTag>fabric8/${project.artifactId}-wouterd:${project.version}</nameAndTag>
+                  <dockerFile>${project.basedir}/src/main/wouterd/Dockerfile</dockerFile>
+                  <buildArguments>
+                    <artifact>${project.build.finalName}.jar</artifact>
+                  </buildArguments>
+                  <artifacts>
+                    <artifact>
+                      <file>${project.build.directory}/${project.build.finalName}.jar</file>
+                    </artifact>
+                  </artifacts>
+                  <keep>true</keep>
+                </image>
+              </images>
+              <containers>
+                <container>
+                  <id>postgres</id>
+                  <image>postgres:8</image>
+                  <waitForStartup>database system is ready to accept connections</waitForStartup>
+                </container>
+                <container>
+                  <id>log-service</id>
+                  <image>log-service</image>
+                  <links>
+                    <link>
+                      <containerId>postgres</containerId>
+                      <containerAlias>db</containerAlias>
+                    </link>
+                  </links>
+                  <waitForStartup>Starting ProtocolHandler</waitForStartup>
+                </container>
+              </containers>
+            </configuration>
+            <executions>
+              <execution>
+                <id>build</id>
+                <goals>
+                  <goal>build-images</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>start</id>
+                <goals>
+                  <goal>start-containers</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>stop</id>
+                <goals>
+                  <goal>stop-containers</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+
+          <plugin>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <configuration>
+              <systemPropertyVariables>
+                <log.url>http://${docker.containers.log-service.ports.8080/tcp.host}:${docker.containers.log-service.ports.8080/tcp.port}</log.url>
+              </systemPropertyVariables>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+   <!--
+      ====== alexec/docker-maven-plugin =======================================================
+
+      The alexec plugin uses external configuration below src/main/docker where each subdirectory
+      specifies an extra image.
+
+      To build the images:
+
+      mvn -Palexec package docker:package
+
+      To start the images:
+
+      mvn -Palexec docker:start
+
+      Run integration tests:
+
+      mvn -Palexec install
+
+      The host exposed with ${docker.log-service.ipAddress} is not routable outside the host running
+      the Docker daemon so when running a setup with a VM like Boot2Docker or docker-machine then the
+      test would need to run within this VM. Hence the integration test code has a workaround to use
+      the ${DOCKER_HOST} in this case. See LogServiceIt for the workaround,
+
+      Other limitations:
+
+      * Cannot influence name of linked containers. You application need to use the given name which
+        is automatically calculated by the artifact name and the image directory name.
+      * Port mapping cannot be dynamically used. Only the ports specified in conf.yml are exported
+        literally
+      -->
+     <profile>
+      <id>alexec</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.alexecollins.docker</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <version>${docker.maven.plugin.alexec.version}</version>
+            <configuration>
+              <removeIntermediateImages>true</removeIntermediateImages>
+              <cache>true</cache>
+            </configuration>
+            <executions>
+              <execution>
+                <id>package</id>
+                <goals>
+                  <goal>package</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>start</id>
+                <goals>
+                  <goal>start</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>stop</id>
+                <goals>
+                  <goal>stop</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+
+          <plugin>
+            <artifactId>maven-failsafe-plugin</artifactId>
+            <configuration>
+              <systemPropertyVariables>
+                <!--  The host is detected internally in LogServiceIT since this plugin has no
+                      way to inject it here -->
+                <log.port>8080</log.port>
+              </systemPropertyVariables>
+            </configuration>
+          </plugin>
+
+
+        </plugins>
+      </build>
+    </profile>
+
+    <!--
+      ====== spotify/docker-maven-plugin =======================================================
+
+      Since this plugin can be only used to build an image, its quite limited. Also we need to use
+      the Dockerfile mode because we want to export a port (which is not possible with the simple
+      configuration)
+
+      Build the image with:
+
+      mvn -Pspotify clean package docker:build
+
+      You can run the image but need to link the postgres image properly:
+
+      docker run -name postgres_cnt -d postgres:8
+      docker run -P -link postgres_cnt:db fabric8/shootout-docker-maven-spotify:0.0.1-SNAPSHOT
+
+      Finally you can run the integration test:
+
+      mvn -Dlog.url=http://localhost:49162 integration-test
+
+      (replace 49162 with the dynamic port as shown by "docker ps")
+     -->
+    <profile>
+      <id>spotify</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.spotify</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <version>${docker.maven.plugin.spotify.version}</version>
+            <configuration>
+              <imageName>fabric8/${project.artifactId}-spotify:${project.version}</imageName>
+              <dockerDirectory>src/main/spotify</dockerDirectory>
+              <baseImage>java</baseImage>
+              <cmd>java -Djava.security.egd=file:/dev/./urandom -jar /opt/${project.build.finalName}.jar</cmd>
+              <resources>
+                <resource>
+                  <targetPath>/</targetPath>
+                  <directory>${project.build.directory}</directory>
+                  <include>${project.build.finalName}.jar</include>
+                </resource>
+              </resources>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
+  <!-- ============================================================================================= -->
+
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.tomcat</groupId>
+      <artifactId>tomcat-util</artifactId>
+      <version>${tomcat.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.tomcat.embed</groupId>
+      <artifactId>tomcat-embed-core</artifactId>
+      <version>${tomcat.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>9.3-1100-jdbc41</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+      <version>3.1</version>
+    </dependency>
+
+    <!-- ======================================================================================  -->
+    <!-- Test -->
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.11</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.jayway.restassured</groupId>
+      <artifactId>rest-assured</artifactId>
+      <version>2.3.1</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <!-- =================================================================================================== -->
+
+  <build>
+    <plugins>
+
+      <!--
+       The Shade plugin simply packs all dependencies into a single jar, optionally with specifyin a main class.
+       There are much more options, please refer to its documentation.
+
+       The important thing is, that the artifact created by this build will be replaced with the fat-jar
+       -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>2.3</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>io.fabric8.docker.sample.demo.LogService</mainClass>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>2.17</version>
+        <executions>
+          <execution>
+            <id>integration-test</id>
+            <goals>
+              <goal>integration-test</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>verify</id>
+            <goals>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <systemPropertyVariables>
+            <jolokia.url>http://localhost:${tomcat.port}/jolokia</jolokia.url>
+            <jolokia.version>${jolokia.version}</jolokia.version>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+
+
+      <!-- Tell surefire to skip test, we are using the failsafe plugin -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.10</version>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+
+      <!-- Need 1.7 -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.1</version>
+        <configuration>
+          <source>1.7</source>
+          <target>1.7</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
